@@ -1,3 +1,6 @@
+from audioop import add
+
+
 DIAM, CLUB, HEART, SPADE = 0, 1, 2, 3
 SUIT_NAMES = {DIAM: "diam", CLUB: "club", HEART: "heart", SPADE: "spade"}
 
@@ -28,7 +31,7 @@ class Card:
         return self.number == other.number and self.suit == other.suit
 
     def __hash__(self) -> int:
-        return hash(2**self.number * 3**self.suit)
+        return self.number + self.suit * 13
 
     def give_number(self):
         return self.number
@@ -43,6 +46,7 @@ class Quintet:
         return f'{WIN_NAMES[self.type]} \n{[str(card) for card in self.cards]}'
 
 FULL_SET = [Card(num, suit) for num in range(1, 14) for suit in range(4)]
+SUIT_COMBOS = [(a, b) for a in range(4) for b in range(4)]
 
 def best5(hand, table):
     """takes in 5 on table and 2 in hand, returns Quintet of win type & 5 best cards"""
@@ -53,7 +57,7 @@ def best5(hand, table):
             aces.append(Card(14, card.suit))
     cards += aces
     suits = [card.suit for card in cards]
-    numbers = sorted([card.number for card in cards])
+    numbers = [card.number for card in cards]
 
     # checks for flush and flush variants (royal, straight flushes)
     for flush_suit in range(4):
@@ -62,9 +66,9 @@ def best5(hand, table):
             straighted, best_5_num = is_straight(flushed_numbers)
             if straighted:
                 best_5 = [Card(number, flush_suit) for number in best_5_num]
-                return Quintet(ROYAL_FLUSH, best_5) if best_5[-1] == 14 else Quintet(STRAIGHT_FLUSH, best_5)
+                return Quintet(ROYAL_FLUSH, best_5) if best_5[-1].number == 14 else Quintet(STRAIGHT_FLUSH, best_5)
             length_flushed = len(flushed_numbers)
-            return Quintet(FLUSH, [Card(flushed_numbers[i], flush_suit) for i in range(length_flushed-1, length_flushed-6)])
+            return Quintet(FLUSH, [Card(1 if flushed_number == 14 else flushed_number, flush_suit) for flushed_number in flushed_numbers[:-6:-1]])
 
     # checking for duplicates
     pairs = []
@@ -138,12 +142,12 @@ def better_hands_after_5(your_hand, table):
                 royal_flush_present = [card in royal_flush_cards for card in table]
                 if sum(royal_flush_present) == 3:
                     # only having the remaining 2 cards can you complete the royal flush
-                    better_hands.append(tuple([card for card in royal_flush_cards if card not in table]))
+                    [add_hand_if_valid(better_hands, [card for card in royal_flush_cards if card not in table])]
                 elif sum(royal_flush_present) == 4:
                     # hands that can beat you are hands with the royal flush completing card
                     royal_card = [card for card in royal_flush_cards if card not in table][0]
                     used_cards = your_hand + table + royal_flush_cards
-                    better_hands += [(royal_card, card) for card in FULL_SET if card not in used_cards]
+                    [add_hand_if_valid(better_hands, [royal_card, card]) for card in FULL_SET if card not in used_cards]
                 elif sum(royal_flush_present) == 5:
                     # everyone has a royal flush so you're all the same
                     return []
@@ -152,12 +156,16 @@ def better_hands_after_5(your_hand, table):
         can_flush, flush_suit, flush_cards = check_flush_potential(table)
 
         # looking for straight flushes
-        if your_quintet.type < STRAIGHT_FLUSH and your_quintet.type > FLUSH:
-            if can_flush:
-                pass
+        if your_quintet.type < STRAIGHT_FLUSH and your_quintet.type > FLUSH and can_flush:
+            # if your hand is worse than flush, doesn't check here, since will be included in flush anyways
+            # if your hand is a flush, then that's a different matter. will be checked with the flush checks
+            cards_for_straight = check_straight_potential(flush_cards)
+            [add_hand_if_valid(better_hands, [Card(num_pair[0], flush_suit), Card(num_pair[1], flush_suit)]) for num_pair in cards_for_straight]
     
     return better_hands
 
+# save for straights
+# better_hands += [(Card(num_pair[0], suit_pair[0]), Card(num_pair[1], suit_pair[1])) for num_pair in cards_for_straight for suit_pair in SUIT_COMBOS if Card(num_pair[0], suit_pair[0]) not in used_cards and Card(num_pair[1], suit_pair[1]) not in used_cards and suit_pair[0] != suit_pair[1]]
 
 """HELPER FUNCTIONS"""
 def is_straight(numbers):
@@ -183,7 +191,7 @@ def check_flush_potential(table):
     return False, None, None
 
 def check_straight_potential(table):
-    """given cards on the table, check for missing 0-2 cards to straight, and if so, gives nums that complete it"""
+    """given cards on the table, check for missing 0-2 cards to straight, and if so, gives pairs of nums that complete it"""
     # sorts it in descending order
     numbers = sorted([card.number for card in table])[::-1]
     winning_nums = []
@@ -202,15 +210,26 @@ def check_straight_potential(table):
             winning_nums += [tuple(sorted((winning_number, i))) for i in range(1, 14) if (i < straight_start or i > straight_start + 4) and tuple(sorted((winning_number, i))) not in winning_nums]
     return winning_nums
 
+def add_hand_if_valid(better_hands, pair_of_cards):
+    """helper function to add pair_of_cards (list). ensured added to better_hands correctly and avoids duplicates"""
+    tuple_to_add = tuple(sorted(pair_of_cards, key=hash))
+    if tuple_to_add in better_hands:
+        return
+    better_hands.append(tuple_to_add)
+
+pair_num = lambda pair : 52 * hash(pair[0]) + hash(pair[1])
+
 if __name__ == '__main__':
     print()
-    hand_test = [Card(10, CLUB), Card(10, SPADE)]
-    table_test = [Card(3, DIAM), Card(10, HEART), Card(11, HEART), Card(12, HEART), Card(13, HEART)]
+    hand_test = [Card(10, CLUB), Card(9, HEART)]
+    table_test = [Card(10, DIAM), Card(1, HEART), Card(11, HEART), Card(12, HEART), Card(13, HEART)]
     goodest_hand = best5(hand_test, table_test)
     print(goodest_hand)
     better_hands = better_hands_after_5(hand_test, table_test)
-    # for hand in better_hands:
-    #     print(f'{hand[0]}, {hand[1]}')
-    # print(len(better_hands))
-    # print(45*44//2)
+    better_hands.sort(key=pair_num)
+    for hand in better_hands:
+        print(f'{hand[0]}, {hand[1]}')
+    print(f'No Duplicates?       {len(better_hands) == len(set(better_hands))}')
+    print(f'No. of better hands: {len(better_hands)}')
+    print(f'Total no. of hands:  {45*44//2}')
     print()
