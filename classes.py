@@ -27,6 +27,9 @@ class Card:
     def __eq__(self, other):
         return self.number == other.number and self.suit == other.suit
 
+    def __hash__(self) -> int:
+        return hash(2**self.number * 3**self.suit)
+
     def give_number(self):
         return self.number
 
@@ -42,6 +45,7 @@ class Quintet:
 FULL_SET = [Card(num, suit) for num in range(1, 14) for suit in range(4)]
 
 def best5(hand, table):
+    """takes in 5 on table and 2 in hand, returns Quintet of win type & 5 best cards"""
     cards = hand + table
     aces = []
     for card in cards:
@@ -148,9 +152,11 @@ def better_hands_after_5(your_hand, table):
         can_flush, flush_suit, flush_cards = check_flush_potential(table)
 
         # looking for straight flushes
-        if your_quintet.type < STRAIGHT_FLUSH:
+        if your_quintet.type < STRAIGHT_FLUSH and your_quintet.type > FLUSH:
             if can_flush:
                 pass
+    
+    return better_hands
 
 
 """HELPER FUNCTIONS"""
@@ -193,13 +199,18 @@ def check_straight_potential(table):
         elif sum(counted_in_straight) == 4:
             existing_straighters = [numbers[i] for i, counted in enumerate(counted_in_straight) if counted]
             winning_number = [(1 if num == 14 else num) for num in range(straight_start, straight_start+5) if num not in existing_straighters][0]
-            winning_nums += [tuple(sorted((winning_number, i))) for i in range(14) if (i < straight_start or i > straight_start + 4) and tuple(sorted((winning_number, i))) not in winning_nums]
+            winning_nums += [tuple(sorted((winning_number, i))) for i in range(1, 14) if (i < straight_start or i > straight_start + 4) and tuple(sorted((winning_number, i))) not in winning_nums]
     return winning_nums
 
 if __name__ == '__main__':
+    print()
     hand_test = [Card(10, CLUB), Card(10, SPADE)]
-    table_test = [Card(3, DIAM), Card(10, HEART), Card(11, CLUB), Card(12, HEART), Card(13, DIAM)]
+    table_test = [Card(3, DIAM), Card(10, HEART), Card(11, HEART), Card(12, HEART), Card(13, HEART)]
     goodest_hand = best5(hand_test, table_test)
     print(goodest_hand)
-    better_hands_after_5(hand_test, table_test)
-    print(check_straight_potential(table_test))
+    better_hands = better_hands_after_5(hand_test, table_test)
+    # for hand in better_hands:
+    #     print(f'{hand[0]}, {hand[1]}')
+    # print(len(better_hands))
+    # print(45*44//2)
+    print()
