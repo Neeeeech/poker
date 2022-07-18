@@ -131,6 +131,7 @@ def better_hands_after_5(your_hand, table):
     """after all 5 cards are out, checks to see how many hands are better than yours"""
     # your_hand is your hand, table is table, other_hands is while recursive, finds better hands
     your_quintet = best5(your_hand, table)
+    used_cards = your_hand + table
     better_hands = []
     # check all the hands that are greater than yours, then same but higher number
     if your_quintet.type != HIGH:
@@ -161,6 +162,32 @@ def better_hands_after_5(your_hand, table):
             # if your hand is a flush, then that's a different matter. will be checked with the flush checks
             cards_for_straight = check_straight_potential(flush_cards)
             [add_hand_if_valid(better_hands, [Card(num_pair[0], flush_suit), Card(num_pair[1], flush_suit)]) for num_pair in cards_for_straight]
+
+        # saving nums & dups for later for later
+        table_nums = [card.number for card in table]
+        # if four of a kind is on the table, no better hands from here on out
+        if sum([table_nums.count(num) == 4 for num in set(table_nums)]) > 0:
+            """HAVE TO ACCOUNT FOR HIGHER CARDS TO SEE WHO WINS"""
+            return better_hands
+
+        # saves triples and doubles that are on the table, for further checking
+        table_triple = [num for num in set(table_nums) if table_nums.count(num) == 3]
+        table_double = [num for num in set(table_nums) if table_nums.count(num) == 2]
+
+        # looking for four of a kind
+        if your_quintet.type < FOUR_OF_A_KIND:
+            # if your hand is worse than four of a kind, look for four of a kind
+            if table_triple:
+                # if there's a triple on the board, add hands which can have the last card
+                for triple_num in table_triple:
+                    required_card = Card(triple_num, 6 - sum([card.suit for card in table if card.number == triple_num]))
+                    [add_hand_if_valid(better_hands, [required_card, Card(num, suit)]) for num in range(1, 14) for suit in range(4) if Card(num, suit) not in used_cards and Card(num, suit) != required_card]
+            if table_double:
+                # if there's a double on the board
+                for double_num in table_double:
+                    used_suits = [card.suit for card in table if card.number == double_num]
+                    remaining_suits = [suit for suit in range(4) if suit not in used_suits]
+                    add_hand_if_valid(better_hands, [Card(double_num, remaining_suits[0]), Card(double_num, remaining_suits[1])])
     
     return better_hands
 
@@ -212,6 +239,7 @@ def check_straight_potential(table):
 
 def add_hand_if_valid(better_hands, pair_of_cards):
     """helper function to add pair_of_cards (list). ensured added to better_hands correctly and avoids duplicates"""
+    # NOTE that it doesn't check if the pair of cards is already used
     tuple_to_add = tuple(sorted(pair_of_cards, key=hash))
     if tuple_to_add in better_hands:
         return
@@ -221,8 +249,9 @@ pair_num = lambda pair : 52 * hash(pair[0]) + hash(pair[1])
 
 if __name__ == '__main__':
     print()
-    hand_test = [Card(10, CLUB), Card(9, HEART)]
-    table_test = [Card(10, DIAM), Card(1, HEART), Card(11, HEART), Card(12, HEART), Card(13, HEART)]
+    hand_test = [Card(11, CLUB), Card(9, HEART)]
+    table_test = [Card(10, DIAM), Card(8, HEART), Card(10, CLUB), Card(12, HEART), Card(13, HEART)]
+    used_cards = hand_test + table_test
     goodest_hand = best5(hand_test, table_test)
     print(goodest_hand)
     better_hands = better_hands_after_5(hand_test, table_test)
@@ -230,6 +259,7 @@ if __name__ == '__main__':
     for hand in better_hands:
         print(f'{hand[0]}, {hand[1]}')
     print(f'No Duplicates?       {len(better_hands) == len(set(better_hands))}')
+    print(f'Used used cards?     {sum([card in card_pair for card in used_cards for card_pair in better_hands]) != 0}')
     print(f'No. of better hands: {len(better_hands)}')
     print(f'Total no. of hands:  {45*44//2}')
     print()
