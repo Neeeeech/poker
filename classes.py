@@ -1,5 +1,5 @@
-from audioop import add
-
+from itertools import permutations
+import datetime
 
 DIAM, CLUB, HEART, SPADE = 0, 1, 2, 3
 SUIT_NAMES = {DIAM: "diam", CLUB: "club", HEART: "heart", SPADE: "spade"}
@@ -46,7 +46,7 @@ class Quintet:
         return f'{WIN_NAMES[self.type]} \n{[str(card) for card in self.cards]}'
 
 FULL_SET = [Card(num, suit) for num in range(1, 14) for suit in range(4)]
-SUIT_COMBOS = [(a, b) for a in range(4) for b in range(4)]
+SUIT_COMBOS = list(permutations([0, 1, 2, 3], 2))
 
 def best5(hand, table):
     """takes in 5 on table and 2 in hand, returns Quintet of win type & 5 best cards"""
@@ -189,6 +189,49 @@ def better_hands_after_5(your_hand, table):
                     remaining_suits = [suit for suit in range(4) if suit not in used_suits]
                     add_hand_if_valid(better_hands, [Card(double_num, remaining_suits[0]), Card(double_num, remaining_suits[1])])
     
+        # looking for full house
+        if your_quintet.type < FULL_HOUSE:
+            if table_triple:
+                # if triple on table, only need a double to win
+                # first check for pairs with remaining two table cards
+                for table_card in table:
+                    if table_card.number == table_triple[0]:
+                        continue
+                    for pair_suit in [suit for suit in range(4) if suit != table_card.suit]:
+                        pair_card = Card(table_card.number, pair_suit)
+                        if pair_card in used_cards:
+                            continue
+                        [add_hand_if_valid(better_hands, [pair_card, Card(num, suit)]) for num in range(1, 14) for suit in range(4) if Card(num, suit) not in used_cards]
+                # then check for pocket pairs
+                for num in range(1, 14):
+                    if num == table_triple:
+                        continue
+                    [add_hand_if_valid(better_hands, [Card(num, suits[0]), Card(num, suits[1])]) for suits in SUIT_COMBOS if Card(num, suits[0]) not in used_cards and Card(num, suits[1]) not in used_cards]
+            if len(table_double) == 1:
+                # if one double on table, need one of double and another single
+                required_num = table_double[0]
+                used_suits = [card.suit for card in table if card.number == required_num]
+                remaining_suits = [suit for suit in range(4) if suit not in used_suits]
+                for double_suit in remaining_suits:
+                    required_double = Card(required_num, double_suit)
+                    if required_double in used_cards:
+                        continue
+                    usable_nums = [card.number for card in table if card.number != required_num]
+                    [add_hand_if_valid(better_hands, [required_double, Card(num, suit)]) for num in usable_nums for suit in range(4) if Card(num, suit) not in used_cards]
+            elif len(table_double) == 2:
+                # if two doubles on table, only need one more card to win...
+                for required_num in table_double:
+                    used_suits = [card.suit for card in table if card.number == required_num]
+                    remaining_suits = [suit for suit in range(4) if suit not in used_suits]
+                    for required_suit in remaining_suits:
+                        required_card = Card(required_num, required_suit)
+                        if required_card in used_cards:
+                            continue
+                        [add_hand_if_valid(better_hands, [required_card, Card(num, suit)]) for num in range(1,14) for suit in range(4) if Card(num, suit) not in used_cards]
+                # ... or if pocket pair with remaining card
+                remaining_num = [card for card in table if card.number not in table_double][0].number
+                [add_hand_if_valid(better_hands, [Card(remaining_num, suits[0]), Card(remaining_num, suits[1])]) for suits in SUIT_COMBOS if Card(remaining_num, suits[0]) not in used_cards and Card(remaining_num, suits[1]) not in used_cards]
+
     return better_hands
 
 # save for straights
@@ -241,7 +284,7 @@ def add_hand_if_valid(better_hands, pair_of_cards):
     """helper function to add pair_of_cards (list). ensured added to better_hands correctly and avoids duplicates"""
     # NOTE that it doesn't check if the pair of cards is already used
     tuple_to_add = tuple(sorted(pair_of_cards, key=hash))
-    if tuple_to_add in better_hands:
+    if tuple_to_add in better_hands or pair_of_cards[0] == pair_of_cards[1]:
         return
     better_hands.append(tuple_to_add)
 
@@ -250,16 +293,27 @@ pair_num = lambda pair : 52 * hash(pair[0]) + hash(pair[1])
 if __name__ == '__main__':
     print()
     hand_test = [Card(11, CLUB), Card(9, HEART)]
-    table_test = [Card(10, DIAM), Card(8, HEART), Card(10, CLUB), Card(12, HEART), Card(13, HEART)]
+    table_test = [Card(10, DIAM), Card(10, SPADE), Card(10, CLUB), Card(3, HEART), Card(1, HEART)]
     used_cards = hand_test + table_test
+
+    start_time = datetime.datetime.now()
     goodest_hand = best5(hand_test, table_test)
+    end_time = datetime.datetime.now()
+    print(f'\n\n\n\n\n\n\n\nTime to find hand         {end_time-start_time}')
+
     print(goodest_hand)
+    start_time = datetime.datetime.now()
     better_hands = better_hands_after_5(hand_test, table_test)
-    better_hands.sort(key=pair_num)
+    end_time = datetime.datetime.now()
+    print(f'Time for better hands:    {end_time-start_time}\n')
+
+    # better_hands.sort(key=pair_num)
     for hand in better_hands:
         print(f'{hand[0]}, {hand[1]}')
     print(f'No Duplicates?       {len(better_hands) == len(set(better_hands))}')
     print(f'Used used cards?     {sum([card in card_pair for card in used_cards for card_pair in better_hands]) != 0}')
     print(f'No. of better hands: {len(better_hands)}')
     print(f'Total no. of hands:  {45*44//2}')
+    # total_hands = [(Card(num1, suit1), Card(num2, suit2)) for num1 in range(1, 14) for num2 in range(1, 14) for suit1 in range(4) for suit2 in range(4) if Card(num1, suit1) != Card(num2, suit2) and Card(num1, suit1) not in used_cards and Card(num2, suit2) not in used_cards]
+    # print(len(total_hands)) # note that you should divide this by 2 because this one double counts swapsies
     print()
