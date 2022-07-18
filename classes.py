@@ -232,6 +232,29 @@ def better_hands_after_5(your_hand, table):
                 remaining_num = [card for card in table if card.number not in table_double][0].number
                 [add_hand_if_valid(better_hands, [Card(remaining_num, suits[0]), Card(remaining_num, suits[1])]) for suits in SUIT_COMBOS if Card(remaining_num, suits[0]) not in used_cards and Card(remaining_num, suits[1]) not in used_cards]
 
+        # looking for flushes
+        if your_quintet.type < FLUSH:
+            # first looks for flushable cards
+            flushable, flush_suit, suited_table_cards = check_flush_potential(table)
+            
+            if flushable:
+                flushed_table_nums = [card.number for card in suited_table_cards]
+                flushed_hand = [card.number for card in your_hand if card.suit == flush_suit]
+                
+                if len(suited_table_cards) == 3:
+                    # 3 flushed on table
+                    usable_nums = [i for i in range(1, 14) if i not in flushed_table_nums and i not in flushed_hand]
+                    potential_better_pairs = permutations(usable_nums, 2)
+                    [add_hand_if_valid(better_hands, [Card(nums[0], flush_suit), Card(nums[1], flush_suit)]) for nums in potential_better_pairs]
+                
+                elif len(suited_table_cards) == 4:
+                    # 4 flushed on table
+                    usable_nums = [i for i in range(1, 14) if i not in flushed_table_nums and i not in flushed_hand]
+                    for usable_num in usable_nums:
+                        required_card = Card(usable_num, flush_suit)
+                        [add_hand_if_valid(better_hands, [required_card, Card(num, other_suit)]) for num in range(1, 14) for other_suit in range(4) if Card(num, other_suit) not in used_cards and Card(num, flush_suit) != required_card]
+                # no need to account for 5 flushed on table here, since it counts as everyone having a flush. and that's a different issue.
+    
     return better_hands
 
 # save for straights
@@ -292,8 +315,8 @@ pair_num = lambda pair : 52 * hash(pair[0]) + hash(pair[1])
 
 if __name__ == '__main__':
     print()
-    hand_test = [Card(11, CLUB), Card(9, HEART)]
-    table_test = [Card(10, DIAM), Card(10, SPADE), Card(10, CLUB), Card(3, HEART), Card(1, HEART)]
+    hand_test = [Card(11, CLUB), Card(9, SPADE)]
+    table_test = [Card(10, DIAM), Card(4, HEART), Card(10, HEART), Card(3, HEART), Card(1, HEART)]
     used_cards = hand_test + table_test
 
     start_time = datetime.datetime.now()
