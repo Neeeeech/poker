@@ -154,13 +154,13 @@ def better_hands_after_5(your_hand, table):
                     return []
 
         # sets up for checking for flushes later
-        can_flush, flush_suit, flush_cards = check_flush_potential(table)
+        can_flush, flush_suit, suited_table_cards = check_flush_potential(table)
 
         # looking for straight flushes
         if your_quintet.type < STRAIGHT_FLUSH and your_quintet.type > FLUSH and can_flush:
             # if your hand is worse than flush, doesn't check here, since will be included in flush anyways
             # if your hand is a flush, then that's a different matter. will be checked with the flush checks
-            cards_for_straight = check_straight_potential(flush_cards)
+            cards_for_straight = check_straight_potential(suited_table_cards)
             [add_hand_if_valid(better_hands, [Card(num_pair[0], flush_suit), Card(num_pair[1], flush_suit)]) for num_pair in cards_for_straight]
 
         # saving nums & dups for later for later
@@ -234,10 +234,8 @@ def better_hands_after_5(your_hand, table):
 
         # looking for flushes
         if your_quintet.type < FLUSH:
-            # first looks for flushable cards
-            flushable, flush_suit, suited_table_cards = check_flush_potential(table)
-            
-            if flushable:
+            # uses check_flush_potential from earlier
+            if can_flush:
                 flushed_table_nums = [card.number for card in suited_table_cards]
                 flushed_hand = [card.number for card in your_hand if card.suit == flush_suit]
                 
@@ -255,6 +253,12 @@ def better_hands_after_5(your_hand, table):
                         [add_hand_if_valid(better_hands, [required_card, Card(num, other_suit)]) for num in range(1, 14) for other_suit in range(4) if Card(num, other_suit) not in used_cards and Card(num, flush_suit) != required_card]
                 # no need to account for 5 flushed on table here, since it counts as everyone having a flush. and that's a different issue.
     
+        # looking for straights
+        if your_quintet.type < STRAIGHT:
+            # checks for straight potential
+            winning_nums = check_straight_potential(table)
+            [add_hand_if_valid(better_hands, [Card(num_pair[0], suit_pair[0]), Card(num_pair[1], suit_pair[1])]) for num_pair in winning_nums for suit_pair in SUIT_COMBOS if Card(num_pair[0], suit_pair[0]) not in used_cards and Card(num_pair[1], suit_pair[1]) not in used_cards]
+
     return better_hands
 
 # save for straights
@@ -286,7 +290,7 @@ def check_flush_potential(table):
 def check_straight_potential(table):
     """given cards on the table, check for missing 0-2 cards to straight, and if so, gives pairs of nums that complete it"""
     # sorts it in descending order
-    numbers = sorted([card.number for card in table])[::-1]
+    numbers = sorted(list(set([card.number for card in table])))[::-1]
     winning_nums = []
     if 1 in numbers:
         numbers.insert(0, 14)
@@ -313,10 +317,12 @@ def add_hand_if_valid(better_hands, pair_of_cards):
 
 pair_num = lambda pair : 52 * hash(pair[0]) + hash(pair[1])
 
+"""---------------------------------------------------------------------------------------------------------------------"""
+
 if __name__ == '__main__':
     print()
-    hand_test = [Card(11, CLUB), Card(9, SPADE)]
-    table_test = [Card(10, DIAM), Card(4, HEART), Card(10, HEART), Card(3, HEART), Card(1, HEART)]
+    hand_test = [Card(3, CLUB), Card(9, SPADE)]
+    table_test = [Card(10, DIAM), Card(4, SPADE), Card(10, CLUB), Card(11, HEART), Card(12, HEART)]
     used_cards = hand_test + table_test
 
     start_time = datetime.datetime.now()
