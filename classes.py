@@ -37,13 +37,14 @@ class Card:
         return self.number
 
 class Quintet:
-    def __init__(self, type_of_win, list_of_cards):
+    def __init__(self, type_of_win, list_of_cards, defining_num):
         self.type = type_of_win
         list_of_cards.sort(key=Card.give_number)
         self.cards = list_of_cards
+        self.defining_num = defining_num
 
     def __str__(self):
-        return f'{WIN_NAMES[self.type]} \n{[str(card) for card in self.cards]}'
+        return f'{WIN_NAMES[self.type]} \n{[str(card) for card in self.cards]} with {self.defining_num} being defining.'
 
 FULL_SET = [Card(num, suit) for num in range(1, 14) for suit in range(4)]
 SUIT_COMBOS = list(permutations([0, 1, 2, 3], 2))
@@ -66,9 +67,8 @@ def best5(hand, table):
             straighted, best_5_num = is_straight(flushed_numbers)
             if straighted:
                 best_5 = [Card(number, flush_suit) for number in best_5_num]
-                return Quintet(ROYAL_FLUSH, best_5) if best_5[-1].number == 14 else Quintet(STRAIGHT_FLUSH, best_5)
-            length_flushed = len(flushed_numbers)
-            return Quintet(FLUSH, [Card(1 if flushed_number == 14 else flushed_number, flush_suit) for flushed_number in flushed_numbers[:-6:-1]])
+                return Quintet(ROYAL_FLUSH, best_5, 14) if best_5[-1].number == 14 else Quintet(STRAIGHT_FLUSH, best_5, best_5_num[-1])
+            return Quintet(FLUSH, [Card(flushed_number, flush_suit) for flushed_number in flushed_numbers[:-6:-1]], flushed_numbers[-1])
 
     # checking for duplicates
     pairs = []
@@ -82,17 +82,17 @@ def best5(hand, table):
         elif test_num_appearances == 4:
             highest_num = choose_highest([num for num in numbers if num != test_num])[0]
             highest_suit = suits[numbers.index(highest_num)]
-            return Quintet(FOUR_OF_A_KIND, [Card(test_num, suit) for suit in range(4)] + [Card(highest_num, highest_suit)])
+            return Quintet(FOUR_OF_A_KIND, [Card(test_num, suit) for suit in range(4)] + [Card(highest_num, highest_suit)], test_num)
 
     # full house
     if threes and pairs:
         highest_trip, highest_pair = sorted(threes)[-1], sorted(pairs)[-1]
-        return Quintet(FULL_HOUSE, [card for card in cards if card.number == highest_trip or card.number == highest_pair])
+        return Quintet(FULL_HOUSE, [card for card in cards if card.number == highest_trip or card.number == highest_pair], highest_trip)
     if len(threes) == 2:
         highest_trip, highest_pair = sorted(threes)[-1], sorted(threes)[-2]
         triplet = [card for card in cards if card.number == highest_trip]
         double = [card for card in cards if card.number == highest_pair][:2]
-        return Quintet(FULL_HOUSE, triplet + double)
+        return Quintet(FULL_HOUSE, triplet + double, highest_trip)
 
     # straight
     is_not_not_straight, best_5 = is_straight(numbers)
@@ -100,13 +100,13 @@ def best5(hand, table):
         straight_cards = []
         for number in best_5:
             straight_cards.append([card for card in cards if card.number == number][0])
-        return Quintet(STRAIGHT, straight_cards)
+        return Quintet(STRAIGHT, straight_cards, best_5[-1])
 
     # normal trip
     if threes:
         highest_three = sorted(threes)[-1]
         highest_remaining_two = choose_highest([num for num in numbers if num != highest_three], 2)
-        return Quintet(THREE, [card for card in cards if card.number in [highest_three] + highest_remaining_two])
+        return Quintet(THREE, [card for card in cards if card.number in [highest_three] + highest_remaining_two], highest_three)
         # don't have to worry about duplicates in the highest_remaining_two, because if there were it would've been
         # a full house
 
@@ -116,16 +116,16 @@ def best5(hand, table):
         highest_remaining_num = choose_highest([num for num in numbers if num not in pair_nums])[0]
         highest_remaining_suit = suits[numbers.index(highest_remaining_num)]
         highest_remaining = [Card(highest_remaining_num, highest_remaining_suit)]
-        return Quintet(TWO_PAIR, [card for card in cards if card.number in pair_nums] + highest_remaining)
+        return Quintet(TWO_PAIR, [card for card in cards if card.number in pair_nums] + highest_remaining, pair_nums[-1])
 
     # pair
     if pairs:
         highest_remaining_nums = choose_highest([num for num in numbers if num != pairs[0]], 3)
-        return Quintet(PAIR, [card for card in cards if card.number in (pairs + highest_remaining_nums)])
+        return Quintet(PAIR, [card for card in cards if card.number in (pairs + highest_remaining_nums)], pairs[0])
 
     # high card
     highest_nums = choose_highest(numbers, 5)
-    return Quintet(HIGH, [card for card in cards if card.number in highest_nums])
+    return Quintet(HIGH, [card for card in cards if card.number in highest_nums], max(highest_nums))
 
 def better_hands_after_5(your_hand, table):
     """after all 5 cards are out, checks to see how many hands are better than yours"""
@@ -294,6 +294,8 @@ def better_hands_after_5(your_hand, table):
             [add_hand_if_valid(better_hands, [Card(sing_num, sing_suit), other_card]) for sing_suit in remaining_suits for other_card in unused_cards]
 
     """NOW LOOKING FOR SAME TIER BUT MILDLY BETTER PAIRS"""
+    # looks from worse to best, because chances are you've got a bad hand rather than good.
+
     if your_quintet.type == STRAIGHT_FLUSH:
         # first looks for your highest card
         your_nums = [card.number for card in your_quintet.cards]
@@ -370,16 +372,18 @@ pair_num = lambda pair : 52 * hash(pair[0]) + hash(pair[1])
 
 if __name__ == '__main__':
     print()
-    hand_test = [Card(8, HEART), Card(9, HEART)]
-    table_test = [Card(10, DIAM), Card(4, SPADE), Card(10, HEART), Card(11, HEART), Card(12, HEART)]
+    hand_test = [Card(8, SPADE), Card(10, HEART)]
+    table_test = [Card(3, HEART), Card(1, CLUB), Card(11, CLUB), Card(8, CLUB), Card(12, HEART)]
     used_cards = hand_test + table_test
 
     start_time = datetime.datetime.now()
     goodest_hand = best5(hand_test, table_test)
     end_time = datetime.datetime.now()
-    print(f'\n\n\n\n\n\n\n\nTime to find hand         {end_time-start_time}')
+    print(f'\nTime to find hand         {end_time-start_time}')
 
     print(goodest_hand)
+    print()
+    
     start_time = datetime.datetime.now()
     better_hands = better_hands_after_5(hand_test, table_test)
     end_time = datetime.datetime.now()
