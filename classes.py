@@ -276,12 +276,31 @@ def better_hands_after_5(your_hand, table):
             # checks for pocket pairs with a single card in the table
             for single_num in table_single:
                 remaining_suits = [0, 1, 2, 3]
-                remaining_suits.remove([card.suit for card in table if card.number == single_num][0])
-                for hand_card in your_hand:
-                    if hand_card.number == single_num:
-                        remaining_suits.remove(hand_card.suit)
+                remaining_suits.remove([card.suit for card in used_cards if card.number == single_num][0])
                 remaining_combos = permutations(remaining_suits, 2)
                 [add_hand_if_valid(better_hands, [Card(single_num, suits[0]), Card(single_num, suits[1])]) for suits in remaining_combos]
+
+        # looking for twopairs
+        if your_quintet.type < TWO_PAIR:
+            # doesn't care about table triples, since if there was, you'd already have a trip, whcih is better than twopair
+            # table double must only have 1 thing, since if there were 2, you'd already have a twopair
+            if table_double:
+                # you only need a pair from one of the singles...
+                required_num = table_double[0]
+                remaining_suits = [0, 1, 2, 3]
+                [remaining_suits.remove(card.suit) for card in used_cards if card.number == required_num]
+                [add_hand_if_valid(better_hands, [Card(required_num, remaining_suit), other_card]) for remaining_suit in remaining_suits for other_card in unused_cards]
+
+                # ... or a pocket pair
+                potential_pocket_nums = list(range(1, 14))
+                potential_pocket_nums.remove(required_num)
+                [potential_pocket_nums.remove(num) for num in table_single]
+                [add_hand_if_valid(better_hands, [Card(num, suits[0]), Card(num, suits[1])]) for num in potential_pocket_nums for suits in SUIT_COMBOS if Card(num, suits[0]) not in used_cards and Card(num, suits[1]) not in used_cards]
+
+            else:
+                # then the table is full of singles, and you've just got to match two of them
+                winning_hands_nums = list(permutations([card.number for card in table], 2))
+                [add_hand_if_valid(better_hands, [Card(pair_nums[0], suits[0]), Card(pair_nums[1], suits[1])]) for pair_nums in winning_hands_nums for suits in SUIT_COMBOS if Card(pair_nums[0], suits[0]) not in used_cards and Card(pair_nums[1], suits[1]) not in used_cards]
 
     return better_hands
 
@@ -345,8 +364,8 @@ pair_num = lambda pair : 52 * hash(pair[0]) + hash(pair[1])
 
 if __name__ == '__main__':
     print()
-    hand_test = [Card(3, CLUB), Card(9, SPADE)]
-    table_test = [Card(10, DIAM), Card(4, SPADE), Card(10, CLUB), Card(11, HEART), Card(12, HEART)]
+    hand_test = [Card(4, CLUB), Card(9, SPADE)]
+    table_test = [Card(10, DIAM), Card(4, SPADE), Card(5, CLUB), Card(11, HEART), Card(12, HEART)]
     used_cards = hand_test + table_test
 
     start_time = datetime.datetime.now()
