@@ -135,177 +135,183 @@ def better_hands_after_5(your_hand, table):
     unused_cards = [card for card in FULL_SET if card not in used_cards]
     better_hands = []
     # check all the hands that are greater than yours, then same but higher number
-    if your_quintet.type != HIGH:
-        # means there are probably fewer hands better than yours, than higher
-        if your_quintet.type < ROYAL_FLUSH:
-            # looks for royal flush potential
-            for flush_suit in range(4):
-                royal_flush_cards = [Card(num, flush_suit) for num in [10, 11, 12, 13, 1]]
-                royal_flush_present = [card in royal_flush_cards for card in table]
-                if sum(royal_flush_present) == 3:
-                    # only having the remaining 2 cards can you complete the royal flush
-                    [add_hand_if_valid(better_hands, [card for card in royal_flush_cards if card not in table])]
-                elif sum(royal_flush_present) == 4:
-                    # hands that can beat you are hands with the royal flush completing card
-                    royal_card = [card for card in royal_flush_cards if card not in table][0]
-                    used_cards = your_hand + table + royal_flush_cards
-                    [add_hand_if_valid(better_hands, [royal_card, card]) for card in FULL_SET if card not in used_cards]
-                elif sum(royal_flush_present) == 5:
-                    # everyone has a royal flush so you're all the same
-                    return []
 
-        # sets up for checking for flushes later
-        can_flush, flush_suit, suited_table_cards = check_flush_potential(table)
+    # sets up for checking for flushes later
+    can_flush, flush_suit, suited_table_cards = check_flush_potential(table)
 
-        # looking for straight flushes
-        if your_quintet.type < STRAIGHT_FLUSH and your_quintet.type > FLUSH and can_flush:
-            # if your hand is worse than flush, doesn't check here, since will be included in flush anyways
-            # if your hand is a flush, then that's a different matter. will be checked with the flush checks
-            cards_for_straight = check_straight_potential(suited_table_cards)
-            [add_hand_if_valid(better_hands, [Card(num_pair[0], flush_suit), Card(num_pair[1], flush_suit)]) for num_pair in cards_for_straight]
+    # doesn't have to look for royal flush, since it's just a rly good straight flush and included below
+    # looking for straight flushes
+    if your_quintet.type < STRAIGHT_FLUSH and your_quintet.type > FLUSH and can_flush:
+        # if your hand is worse than flush, doesn't check here, since will be included in flush anyways
+        # if your hand is a flush, then that's a different matter. will be checked with the flush checks
+        cards_for_straight = check_straight_potential(suited_table_cards)
+        [add_hand_if_valid(better_hands, [Card(num_pair[0], flush_suit), Card(num_pair[1], flush_suit)]) for num_pair in cards_for_straight]
 
-        # saving nums & dups for later for later
-        table_nums = [card.number for card in table]
-        # if four of a kind is on the table, no better hands from here on out
-        if sum([table_nums.count(num) == 4 for num in set(table_nums)]) > 0:
-            """HAVE TO ACCOUNT FOR HIGHER CARDS TO SEE WHO WINS"""
-            return better_hands
+    # saving nums & dups for later for later
+    table_nums = [card.number for card in table]
+    # if four of a kind is on the table, no better hands from here on out
+    if sum([table_nums.count(num) == 4 for num in set(table_nums)]) > 0:
+        """HAVE TO ACCOUNT FOR HIGHER CARDS TO SEE WHO WINS"""
+        return better_hands
 
-        # saves triples and doubles that are on the table, for further checking
-        table_triple = [num for num in set(table_nums) if table_nums.count(num) == 3]
-        table_double = [num for num in set(table_nums) if table_nums.count(num) == 2]
-        table_single = [num for num in set(table_nums) if table_nums.count(num) == 1]
+    # saves triples and doubles that are on the table, for further checking
+    table_triple = [num for num in set(table_nums) if table_nums.count(num) == 3]
+    table_double = [num for num in set(table_nums) if table_nums.count(num) == 2]
+    table_single = [num for num in set(table_nums) if table_nums.count(num) == 1]
 
-        # looking for four of a kind
-        if your_quintet.type < FOUR_OF_A_KIND:
-            # if your hand is worse than four of a kind, look for four of a kind
-            if table_triple:
-                # if there's a triple on the board, add hands which can have the last card
-                for triple_num in table_triple:
-                    required_card = Card(triple_num, 6 - sum([card.suit for card in table if card.number == triple_num]))
-                    [add_hand_if_valid(better_hands, [required_card, Card(num, suit)]) for num in range(1, 14) for suit in range(4) if Card(num, suit) not in used_cards and Card(num, suit) != required_card]
-            if table_double:
-                # if there's a double on the board
-                for double_num in table_double:
-                    used_suits = [card.suit for card in table if card.number == double_num]
-                    remaining_suits = [suit for suit in range(4) if suit not in used_suits]
-                    add_hand_if_valid(better_hands, [Card(double_num, remaining_suits[0]), Card(double_num, remaining_suits[1])])
-    
-        # looking for full house
-        if your_quintet.type < FULL_HOUSE:
-            if table_triple:
-                # if triple on table, only need a double to win
-                # first check for pairs with remaining two table cards
-                for table_card in table:
-                    if table_card.number == table_triple[0]:
+    # looking for four of a kind
+    if your_quintet.type < FOUR_OF_A_KIND:
+        # if your hand is worse than four of a kind, look for four of a kind
+        if table_triple:
+            # if there's a triple on the board, add hands which can have the last card
+            for triple_num in table_triple:
+                required_card = Card(triple_num, 6 - sum([card.suit for card in table if card.number == triple_num]))
+                [add_hand_if_valid(better_hands, [required_card, Card(num, suit)]) for num in range(1, 14) for suit in range(4) if Card(num, suit) not in used_cards and Card(num, suit) != required_card]
+        if table_double:
+            # if there's a double on the board
+            for double_num in table_double:
+                used_suits = [card.suit for card in table if card.number == double_num]
+                remaining_suits = [suit for suit in range(4) if suit not in used_suits]
+                add_hand_if_valid(better_hands, [Card(double_num, remaining_suits[0]), Card(double_num, remaining_suits[1])])
+
+    # looking for full house
+    if your_quintet.type < FULL_HOUSE:
+        if table_triple:
+            # if triple on table, only need a double to win
+            # first check for pairs with remaining two table cards
+            for table_card in table:
+                if table_card.number == table_triple[0]:
+                    continue
+                for pair_suit in [suit for suit in range(4) if suit != table_card.suit]:
+                    pair_card = Card(table_card.number, pair_suit)
+                    if pair_card in used_cards:
                         continue
-                    for pair_suit in [suit for suit in range(4) if suit != table_card.suit]:
-                        pair_card = Card(table_card.number, pair_suit)
-                        if pair_card in used_cards:
-                            continue
-                        [add_hand_if_valid(better_hands, [pair_card, Card(num, suit)]) for num in range(1, 14) for suit in range(4) if Card(num, suit) not in used_cards]
-                # then check for pocket pairs
-                for num in range(1, 14):
-                    if num == table_triple:
-                        continue
-                    [add_hand_if_valid(better_hands, [Card(num, suits[0]), Card(num, suits[1])]) for suits in SUIT_COMBOS if Card(num, suits[0]) not in used_cards and Card(num, suits[1]) not in used_cards]
-            if len(table_double) == 1:
-                # if one double on table, need one of double and another single
-                required_num = table_double[0]
+                    [add_hand_if_valid(better_hands, [pair_card, Card(num, suit)]) for num in range(1, 14) for suit in range(4) if Card(num, suit) not in used_cards]
+            # then check for pocket pairs
+            for num in range(1, 14):
+                if num == table_triple:
+                    continue
+                [add_hand_if_valid(better_hands, [Card(num, suits[0]), Card(num, suits[1])]) for suits in SUIT_COMBOS if Card(num, suits[0]) not in used_cards and Card(num, suits[1]) not in used_cards]
+        if len(table_double) == 1:
+            # if one double on table, need one of double and another single
+            required_num = table_double[0]
+            used_suits = [card.suit for card in table if card.number == required_num]
+            remaining_suits = [suit for suit in range(4) if suit not in used_suits]
+            for double_suit in remaining_suits:
+                required_double = Card(required_num, double_suit)
+                if required_double in used_cards:
+                    continue
+                usable_nums = [card.number for card in table if card.number != required_num]
+                [add_hand_if_valid(better_hands, [required_double, Card(num, suit)]) for num in usable_nums for suit in range(4) if Card(num, suit) not in used_cards]
+        elif len(table_double) == 2:
+            # if two doubles on table, only need one more card to win...
+            for required_num in table_double:
                 used_suits = [card.suit for card in table if card.number == required_num]
                 remaining_suits = [suit for suit in range(4) if suit not in used_suits]
-                for double_suit in remaining_suits:
-                    required_double = Card(required_num, double_suit)
-                    if required_double in used_cards:
+                for required_suit in remaining_suits:
+                    required_card = Card(required_num, required_suit)
+                    if required_card in used_cards:
                         continue
-                    usable_nums = [card.number for card in table if card.number != required_num]
-                    [add_hand_if_valid(better_hands, [required_double, Card(num, suit)]) for num in usable_nums for suit in range(4) if Card(num, suit) not in used_cards]
-            elif len(table_double) == 2:
-                # if two doubles on table, only need one more card to win...
-                for required_num in table_double:
-                    used_suits = [card.suit for card in table if card.number == required_num]
-                    remaining_suits = [suit for suit in range(4) if suit not in used_suits]
-                    for required_suit in remaining_suits:
-                        required_card = Card(required_num, required_suit)
-                        if required_card in used_cards:
-                            continue
-                        [add_hand_if_valid(better_hands, [required_card, Card(num, suit)]) for num in range(1,14) for suit in range(4) if Card(num, suit) not in used_cards]
-                # ... or if pocket pair with remaining card
-                remaining_num = [card for card in table if card.number not in table_double][0].number
-                [add_hand_if_valid(better_hands, [Card(remaining_num, suits[0]), Card(remaining_num, suits[1])]) for suits in SUIT_COMBOS if Card(remaining_num, suits[0]) not in used_cards and Card(remaining_num, suits[1]) not in used_cards]
+                    [add_hand_if_valid(better_hands, [required_card, Card(num, suit)]) for num in range(1,14) for suit in range(4) if Card(num, suit) not in used_cards]
+            # ... or if pocket pair with remaining card
+            remaining_num = [card for card in table if card.number not in table_double][0].number
+            [add_hand_if_valid(better_hands, [Card(remaining_num, suits[0]), Card(remaining_num, suits[1])]) for suits in SUIT_COMBOS if Card(remaining_num, suits[0]) not in used_cards and Card(remaining_num, suits[1]) not in used_cards]
 
-        # looking for flushes
-        if your_quintet.type < FLUSH:
-            # uses check_flush_potential from earlier
-            if can_flush:
-                flushed_table_nums = [card.number for card in suited_table_cards]
-                flushed_hand = [card.number for card in your_hand if card.suit == flush_suit]
-                
-                if len(suited_table_cards) == 3:
-                    # 3 flushed on table
-                    usable_nums = [i for i in range(1, 14) if i not in flushed_table_nums and i not in flushed_hand]
-                    potential_better_pairs = permutations(usable_nums, 2)
-                    [add_hand_if_valid(better_hands, [Card(nums[0], flush_suit), Card(nums[1], flush_suit)]) for nums in potential_better_pairs]
-                
-                elif len(suited_table_cards) == 4:
-                    # 4 flushed on table
-                    usable_nums = [i for i in range(1, 14) if i not in flushed_table_nums and i not in flushed_hand]
-                    for usable_num in usable_nums:
-                        required_card = Card(usable_num, flush_suit)
-                        [add_hand_if_valid(better_hands, [required_card, Card(num, other_suit)]) for num in range(1, 14) for other_suit in range(4) if Card(num, other_suit) not in used_cards and Card(num, flush_suit) != required_card]
-                # no need to account for 5 flushed on table here, since it counts as everyone having a flush. and that's a different issue.
-    
-        # looking for straights
-        if your_quintet.type < STRAIGHT:
-            # checks for straight potential
-            winning_nums = check_straight_potential(table)
-            [add_hand_if_valid(better_hands, [Card(num_pair[0], suit_pair[0]), Card(num_pair[1], suit_pair[1])]) for num_pair in winning_nums for suit_pair in SUIT_COMBOS if Card(num_pair[0], suit_pair[0]) not in used_cards and Card(num_pair[1], suit_pair[1]) not in used_cards]
-
-        # looking for triples
-        if your_quintet.type < THREE:
-            # doesn't care about table triples, since that means everyone has a triple, and that's a different case
-
-            # checks for completing a double. doesn't matter if you try to add a full house accidentally.
-            for double_num in table_double:
-                for trip_completer_suit in range(4):
-                    trip_completer = Card(double_num, trip_completer_suit)
-                    if trip_completer in used_cards:
-                        continue
-                    [add_hand_if_valid(better_hands, [trip_completer, other_card]) for other_card in unused_cards]
+    # looking for flushes
+    if your_quintet.type < FLUSH:
+        # uses check_flush_potential from earlier
+        if can_flush:
+            flushed_table_nums = [card.number for card in suited_table_cards]
+            flushed_hand = [card.number for card in your_hand if card.suit == flush_suit]
             
-            # checks for pocket pairs with a single card in the table
-            for single_num in table_single:
-                remaining_suits = [0, 1, 2, 3]
-                remaining_suits.remove([card.suit for card in used_cards if card.number == single_num][0])
-                remaining_combos = permutations(remaining_suits, 2)
-                [add_hand_if_valid(better_hands, [Card(single_num, suits[0]), Card(single_num, suits[1])]) for suits in remaining_combos]
+            if len(suited_table_cards) == 3:
+                # 3 flushed on table
+                usable_nums = [i for i in range(1, 14) if i not in flushed_table_nums and i not in flushed_hand]
+                potential_better_pairs = permutations(usable_nums, 2)
+                [add_hand_if_valid(better_hands, [Card(nums[0], flush_suit), Card(nums[1], flush_suit)]) for nums in potential_better_pairs]
+            
+            elif len(suited_table_cards) == 4:
+                # 4 flushed on table
+                usable_nums = [i for i in range(1, 14) if i not in flushed_table_nums and i not in flushed_hand]
+                for usable_num in usable_nums:
+                    required_card = Card(usable_num, flush_suit)
+                    [add_hand_if_valid(better_hands, [required_card, Card(num, other_suit)]) for num in range(1, 14) for other_suit in range(4) if Card(num, other_suit) not in used_cards and Card(num, flush_suit) != required_card]
+            # no need to account for 5 flushed on table here, since it counts as everyone having a flush. and that's a different issue.
 
-        # looking for twopairs
-        if your_quintet.type < TWO_PAIR:
-            # doesn't care about table triples, since if there was, you'd already have a trip, whcih is better than twopair
-            # table double must only have 1 thing, since if there were 2, you'd already have a twopair
-            if table_double:
-                # you only need a pair from one of the singles...
-                required_num = table_double[0]
-                remaining_suits = [0, 1, 2, 3]
-                [remaining_suits.remove(card.suit) for card in used_cards if card.number == required_num]
-                [add_hand_if_valid(better_hands, [Card(required_num, remaining_suit), other_card]) for remaining_suit in remaining_suits for other_card in unused_cards]
+    # looking for straights
+    if your_quintet.type < STRAIGHT:
+        # checks for straight potential
+        winning_nums = check_straight_potential(table)
+        [add_hand_if_valid(better_hands, [Card(num_pair[0], suit_pair[0]), Card(num_pair[1], suit_pair[1])]) for num_pair in winning_nums for suit_pair in SUIT_COMBOS if Card(num_pair[0], suit_pair[0]) not in used_cards and Card(num_pair[1], suit_pair[1]) not in used_cards]
 
-                # ... or a pocket pair
-                potential_pocket_nums = list(range(1, 14))
-                potential_pocket_nums.remove(required_num)
-                [potential_pocket_nums.remove(num) for num in table_single]
-                [add_hand_if_valid(better_hands, [Card(num, suits[0]), Card(num, suits[1])]) for num in potential_pocket_nums for suits in SUIT_COMBOS if Card(num, suits[0]) not in used_cards and Card(num, suits[1]) not in used_cards]
+    # looking for triples
+    if your_quintet.type < THREE:
+        # doesn't care about table triples, since that means everyone has a triple, and that's a different case
 
-            else:
-                # then the table is full of singles, and you've just got to match two of them
-                winning_hands_nums = list(permutations([card.number for card in table], 2))
-                [add_hand_if_valid(better_hands, [Card(pair_nums[0], suits[0]), Card(pair_nums[1], suits[1])]) for pair_nums in winning_hands_nums for suits in SUIT_COMBOS if Card(pair_nums[0], suits[0]) not in used_cards and Card(pair_nums[1], suits[1]) not in used_cards]
+        # checks for completing a double. doesn't matter if you try to add a full house accidentally.
+        for double_num in table_double:
+            for trip_completer_suit in range(4):
+                trip_completer = Card(double_num, trip_completer_suit)
+                if trip_completer in used_cards:
+                    continue
+                [add_hand_if_valid(better_hands, [trip_completer, other_card]) for other_card in unused_cards]
+        
+        # checks for pocket pairs with a single card in the table
+        for single_num in table_single:
+            remaining_suits = [0, 1, 2, 3]
+            remaining_suits.remove([card.suit for card in used_cards if card.number == single_num][0])
+            remaining_combos = permutations(remaining_suits, 2)
+            [add_hand_if_valid(better_hands, [Card(single_num, suits[0]), Card(single_num, suits[1])]) for suits in remaining_combos]
+
+    # looking for twopairs
+    if your_quintet.type < TWO_PAIR:
+        # doesn't care about table triples, since if there was, you'd already have a trip, whcih is better than twopair
+        # table double must only have 1 thing, since if there were 2, you'd already have a twopair
+        if table_double:
+            # you only need a pair from one of the singles...
+            required_num = table_double[0]
+            remaining_suits = [0, 1, 2, 3]
+            [remaining_suits.remove(card.suit) for card in used_cards if card.number == required_num]
+            [add_hand_if_valid(better_hands, [Card(required_num, remaining_suit), other_card]) for remaining_suit in remaining_suits for other_card in unused_cards]
+
+            # ... or a pocket pair
+            potential_pocket_nums = list(range(1, 14))
+            potential_pocket_nums.remove(required_num)
+            [potential_pocket_nums.remove(num) for num in table_single]
+            [add_hand_if_valid(better_hands, [Card(num, suits[0]), Card(num, suits[1])]) for num in potential_pocket_nums for suits in SUIT_COMBOS if Card(num, suits[0]) not in used_cards and Card(num, suits[1]) not in used_cards]
+
+        else:
+            # then the table is full of singles, and you've just got to match two of them
+            winning_hands_nums = list(permutations([card.number for card in table], 2))
+            [add_hand_if_valid(better_hands, [Card(pair_nums[0], suits[0]), Card(pair_nums[1], suits[1])]) for pair_nums in winning_hands_nums for suits in SUIT_COMBOS if Card(pair_nums[0], suits[0]) not in used_cards and Card(pair_nums[1], suits[1]) not in used_cards]
+
+    # looking for pairs
+    if your_quintet.type < PAIR:
+        # the table must be full of singles, since if there was a pair on the table, you'd have a pair
+        for sing_num in table_single:
+            remaining_suits = [0, 1, 2, 3]
+            [remaining_suits.remove(card.suit) for card in used_cards if card.number == sing_num]
+            [add_hand_if_valid(better_hands, [Card(sing_num, sing_suit), other_card]) for sing_suit in remaining_suits for other_card in unused_cards]
+
+    """NOW LOOKING FOR SAME TIER BUT MILDLY BETTER PAIRS"""
+    if your_quintet.type == STRAIGHT_FLUSH:
+        # first looks for your highest card
+        your_nums = [card.number for card in your_quintet.cards]
+        your_highest = max(your_nums)
+
+        # since already 3 of same suit on table for your straight flush, any other straight flush will be of same suit
+        flush_suit = your_quintet.cards[0].suit
+
+        # then checks for potential straights with table cards of flush suit
+        flushed_table_cards = [card for card in table if card.suit == flush_suit]
+        max_flushed_table_num = max([card.number for card in flushed_table_cards])
+        straight_num_pairs = check_straight_potential(flushed_table_cards)
+        better_num_pairs = [pair for pair in straight_num_pairs if max(max(pair), max_flushed_table_num) > your_highest]
+
+        # now we just add the better pairs back, but as cards of flush suit
+        [add_hand_if_valid(better_hands, [Card(num_pair[0], flush_suit), Card(num_pair[1], flush_suit)]) for num_pair in better_num_pairs]
 
     return better_hands
-
-# save for straights
-# better_hands += [(Card(num_pair[0], suit_pair[0]), Card(num_pair[1], suit_pair[1])) for num_pair in cards_for_straight for suit_pair in SUIT_COMBOS if Card(num_pair[0], suit_pair[0]) not in used_cards and Card(num_pair[1], suit_pair[1]) not in used_cards and suit_pair[0] != suit_pair[1]]
 
 """HELPER FUNCTIONS"""
 def is_straight(numbers):
@@ -354,7 +360,7 @@ def add_hand_if_valid(better_hands, pair_of_cards):
     """helper function to add pair_of_cards (list). ensured added to better_hands correctly and avoids duplicates"""
     # NOTE that it doesn't check if the pair of cards is already used
     tuple_to_add = tuple(sorted(pair_of_cards, key=hash))
-    if tuple_to_add in better_hands or pair_of_cards[0] == pair_of_cards[1]:
+    if tuple_to_add in better_hands or pair_of_cards[0] == pair_of_cards[1]: # tuple_to_add in better_hands or 
         return
     better_hands.append(tuple_to_add)
 
@@ -364,8 +370,8 @@ pair_num = lambda pair : 52 * hash(pair[0]) + hash(pair[1])
 
 if __name__ == '__main__':
     print()
-    hand_test = [Card(4, CLUB), Card(9, SPADE)]
-    table_test = [Card(10, DIAM), Card(4, SPADE), Card(5, CLUB), Card(11, HEART), Card(12, HEART)]
+    hand_test = [Card(8, HEART), Card(9, HEART)]
+    table_test = [Card(10, DIAM), Card(4, SPADE), Card(10, HEART), Card(11, HEART), Card(12, HEART)]
     used_cards = hand_test + table_test
 
     start_time = datetime.datetime.now()
