@@ -132,6 +132,7 @@ def better_hands_after_5(your_hand, table):
     # your_hand is your hand, table is table, other_hands is while recursive, finds better hands
     your_quintet = best5(your_hand, table)
     used_cards = your_hand + table
+    unused_cards = [card for card in FULL_SET if card not in used_cards]
     better_hands = []
     # check all the hands that are greater than yours, then same but higher number
     if your_quintet.type != HIGH:
@@ -173,6 +174,7 @@ def better_hands_after_5(your_hand, table):
         # saves triples and doubles that are on the table, for further checking
         table_triple = [num for num in set(table_nums) if table_nums.count(num) == 3]
         table_double = [num for num in set(table_nums) if table_nums.count(num) == 2]
+        table_single = [num for num in set(table_nums) if table_nums.count(num) == 1]
 
         # looking for four of a kind
         if your_quintet.type < FOUR_OF_A_KIND:
@@ -258,6 +260,28 @@ def better_hands_after_5(your_hand, table):
             # checks for straight potential
             winning_nums = check_straight_potential(table)
             [add_hand_if_valid(better_hands, [Card(num_pair[0], suit_pair[0]), Card(num_pair[1], suit_pair[1])]) for num_pair in winning_nums for suit_pair in SUIT_COMBOS if Card(num_pair[0], suit_pair[0]) not in used_cards and Card(num_pair[1], suit_pair[1]) not in used_cards]
+
+        # looking for triples
+        if your_quintet.type < THREE:
+            # doesn't care about table triples, since that means everyone has a triple, and that's a different case
+
+            # checks for completing a double. doesn't matter if you try to add a full house accidentally.
+            for double_num in table_double:
+                for trip_completer_suit in range(4):
+                    trip_completer = Card(double_num, trip_completer_suit)
+                    if trip_completer in used_cards:
+                        continue
+                    [add_hand_if_valid(better_hands, [trip_completer, other_card]) for other_card in unused_cards]
+            
+            # checks for pocket pairs with a single card in the table
+            for single_num in table_single:
+                remaining_suits = [0, 1, 2, 3]
+                remaining_suits.remove([card.suit for card in table if card.number == single_num][0])
+                for hand_card in your_hand:
+                    if hand_card.number == single_num:
+                        remaining_suits.remove(hand_card.suit)
+                remaining_combos = permutations(remaining_suits, 2)
+                [add_hand_if_valid(better_hands, [Card(single_num, suits[0]), Card(single_num, suits[1])]) for suits in remaining_combos]
 
     return better_hands
 
